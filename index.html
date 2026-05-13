@@ -395,43 +395,43 @@
   // ===== URLパラメータ読み取り =====
   (function () {
     const params = new URLSearchParams(window.location.search);
-    const keys = ['p1', 'p2', 'p3'];
 
-    // 現在のURLを表示（クォートを除去して表示）
+    // 現在のURLを表示
     document.getElementById('current-url').textContent = window.location.href;
 
     const grid = document.getElementById('param-grid');
+    const raw = params.get('p1');
 
-    keys.forEach(function (key) {
-      // URLSearchParams はクォート文字もそのまま返すので除去する
-      let raw = params.get(key);
-      let value = null;
-      if (raw !== null) {
-        // 前後の " や ' を取り除く
-        value = raw.replace(/^["']|["']$/g, '').trim();
-      }
-
+    if (raw === null) {
+      // p1 自体が未指定の場合
       const row = document.createElement('div');
-      row.className = 'param-row ' + (value !== null ? 'has-value' : 'no-value');
+      row.className = 'param-row no-value';
+      row.innerHTML = `
+        <div class="param-key">p1</div>
+        <div class="param-value empty">（未指定）</div>
+        <span class="param-badge-none">null</span>
+      `;
+      grid.appendChild(row);
+      return;
+    }
+
+    // カンマで分割して各値を表示
+    const values = raw.split(',').map(v => v.trim()).filter(v => v.length > 0);
+
+    values.forEach(function (val, i) {
+      const row = document.createElement('div');
+      row.className = 'param-row has-value';
 
       const keyEl = document.createElement('div');
       keyEl.className = 'param-key';
-      keyEl.textContent = key;
+      keyEl.textContent = i + 1;   // 1, 2, 3 …
 
       const valEl = document.createElement('div');
-      valEl.className = 'param-value' + (value !== null ? '' : ' empty');
-      valEl.textContent = value !== null ? value : '（未指定）';
+      valEl.className = 'param-value';
+      valEl.textContent = val;
 
       row.appendChild(keyEl);
       row.appendChild(valEl);
-
-      if (value === null) {
-        const badge = document.createElement('span');
-        badge.className = 'param-badge-none';
-        badge.textContent = 'null';
-        row.appendChild(badge);
-      }
-
       grid.appendChild(row);
     });
   })();
