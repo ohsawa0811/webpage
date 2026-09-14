@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>ルーレット</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #1e1b4b, #4c1d95);
+    font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    color: #fff;
+  }
+  .container {
+    display: flex;
+    gap: 40px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    padding: 30px;
+  }
+  .panel {
+    background: rgba(255,255,255,0.08);
+    border-radius: 16px;
+    padding: 20px;
+    width: 280px;
+    backdrop-filter: blur(6px);
+  }
+  .panel h2 {
+    margin-top: 0;
+    font-size: 16px;
+    color: #f0abfc;
+  }
+  textarea {
+    width: 100%;
+    height: 200px;
+    resize: vertical;
+    border-radius: 8px;
+    border: none;
+    padding: 10px;
+    font-size: 14px;
+    line-height: 1.6;
+    outline: none;
+  }
+  .hint {
+    font-size: 12px;
+    color: #d8b4fe;
+    margin: 8px 0 16px;
+  }
+  button.apply {
+    width: 100%;
+    padding: 10px;
+    border: none;
+    border-radius: 8px;
+    background: #a855f7;
+    color: #fff;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  button.apply:hover { background: #9333ea; }
+
+  .wheel-wrap {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .pointer {
+    width: 0;
+    height: 0;
+    border-left: 16px solid transparent;
+    border-right: 16px solid transparent;
+    border-top: 28px solid #facc15;
+    margin-bottom: -4px;
+    z-index: 2;
+    filter: drop-shadow(0 2px 2px rgba(0,0,0,0.4));
+  }
+  canvas {
+    border-radius: 50%;
+    box-shadow: 0 0 0 8px #312e81, 0 10px 30px rgba(0,0,0,0.5);
+    background: #1e1b4b;
+  }
+  .spin-btn {
+    margin-top: 24px;
+    padding: 14px 40px;
+    font-size: 18px;
+    font-weight: bold;
+    border: none;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #facc15, #f97316);
+    color: #1e1b4b;
+    cursor: pointer;
+    box-shadow: 0 6px 16px rgba(249,115,22,0.4);
+    transition: transform 0.15s;
+  }
+  .spin-btn:active { transform: scale(0.96); }
+  .spin-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .result {
+    margin-top: 18px;
+    font-size: 22px;
+    font-weight: bold;
+    min-height: 32px;
+    color: #fde68a;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="panel">
+    <h2>ルーレットの項目</h2>
+    <textarea id="itemsInput">ＪＰ
+原田
+龍野
+荒川
+小池
+木田
+吉田
+バルス
+藤中
+山田
+こばせ
+菩薩
+しかの
+永井
+今宿</textarea>
+    <div class="hint">1行につき1項目を入力してください。</div>
+    <button class="apply" onclick="applyItems()">ルーレットに反映</button>
+  </div>
+
+  <div class="wheel-wrap">
+    <div class="pointer"></div>
+    <canvas id="wheel" width="400" height="400"></canvas>
+    <button class="spin-btn" id="spinBtn" onclick="spin()">スタート</button>
+    <div class="result" id="result"></div>
+  </div>
+
+</div>
+
+<script>
+const canvas = document.getElementById('wheel');
+const ctx = canvas.getContext('2d');
+const centerX = canvas.width / 2;
+const centerY = canvas.height / 2;
+const radius = canvas.width / 2 - 10;
+
+const colors = ['#f87171','#fb923c','#facc15','#4ade80','#38bdf8','#818cf8','#e879f9','#fb7185'];
+
+let items = [];
+let currentRotation = 0; // ラジアン
+let spinning = false;
+
+function getItemsFromInput() {
+  const raw = document.getElementById('itemsInput').value;
+  return raw.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+}
+
+function drawWheel(rotation) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const n = items.length;
+  if (n === 0) {
+    ctx.fillStyle = '#fff';
+    ctx.font = '16px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('項目がありません', centerX, centerY);
+    return;
+  }
+  const arc = (Math.PI * 2) / n;
+
+  for (let i = 0; i < n; i++) {
+    const start = rotation + i * arc;
+    const end = start + arc;
+
+    ctx.beginPath();
+    ctx.moveTo(centerX, centerY);
+    ctx.arc(centerX, centerY, radius, start, end);
+    ctx.closePath();
+    ctx.fillStyle = colors[i % colors.length];
+    ctx.fill();
+    ctx.strokeStyle = '#1e1b4b';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // テキスト
+    ctx.save();
+    ctx.translate(centerX, centerY);
+    ctx.rotate(start + arc / 2);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#1e1b4b';
+    ctx.font = 'bold 16px sans-serif';
+    const label = items[i].length > 8 ? items[i].slice(0, 8) + '…' : items[i];
+    ctx.fillText(label, radius - 14, 6);
+    ctx.restore();
+  }
+
+  // 中心の円
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, 24, 0, Math.PI * 2);
+  ctx.fillStyle = '#facc15';
+  ctx.fill();
+  ctx.strokeStyle = '#1e1b4b';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+}
+
+function applyItems() {
+  const newItems = getItemsFromInput();
+  if (newItems.length === 0) {
+    alert('少なくとも1つ項目を入力してください。');
+    return;
+  }
+  items = newItems;
+  currentRotation = 0;
+  document.getElementById('result').textContent = '';
+  drawWheel(currentRotation);
+}
+
+function easeOutCubic(t) {
+  return 1 - Math.pow(1 - t, 3);
+}
+
+// 「小池」を含む項目に合計40%、それ以外に合計60%を均等割り当てする重みを計算
+// 「小池」を含む項目が無ければ均等確率、全項目が該当する場合も均等確率にフォールバック
+function computeWeights(list) {
+  const n = list.length;
+  const matchIndices = [];
+  list.forEach((it, i) => { if (it.includes('小池')) matchIndices.push(i); });
+
+  const weights = new Array(n).fill(0);
+
+  if (matchIndices.length === 0 || matchIndices.length === n) {
+    for (let i = 0; i < n; i++) weights[i] = 1 / n;
+    return weights;
+  }
+
+  const otherIndices = list.map((_, i) => i).filter(i => !matchIndices.includes(i));
+  const matchWeight = 0.4 / matchIndices.length;
+  const otherWeight = 0.6 / otherIndices.length;
+  matchIndices.forEach(i => weights[i] = matchWeight);
+  otherIndices.forEach(i => weights[i] = otherWeight);
+  return weights;
+}
+
+// 重みに従ってランダムに当選インデックスを選ぶ
+function pickWeightedIndex(list) {
+  const weights = computeWeights(list);
+  const total = weights.reduce((a, b) => a + b, 0);
+  let r = Math.random() * total;
+  for (let i = 0; i < weights.length; i++) {
+    r -= weights[i];
+    if (r <= 0) return i;
+  }
+  return weights.length - 1;
+}
+
+function spin() {
+  if (spinning) return;
+  if (items.length === 0) {
+    alert('先に「ルーレットに反映」を押して項目を設定してください。');
+    return;
+  }
+  spinning = true;
+  document.getElementById('spinBtn').disabled = true;
+  document.getElementById('result').textContent = '';
+
+  const n = items.length;
+  const arc = (Math.PI * 2) / n;
+  const pointerAngle = -Math.PI / 2; // 12時方向
+
+  // 重み付き抽選で当選インデックスを先に決定
+  const winningIndex = pickWeightedIndex(items);
+
+  // 当選項目のセグメント内(端に寄りすぎないよう中心付近)にランダムなずれを加える
+  const jitter = (Math.random() - 0.5) * arc * 0.7;
+  const targetNormalized = winningIndex * arc + arc / 2 + jitter;
+
+  // rotation ≡ pointerAngle - targetNormalized (mod 2π) となるrotationを求める
+  const baseRotationMod = pointerAngle - targetNormalized;
+  const twoPi = Math.PI * 2;
+  const deltaNeeded = (((baseRotationMod - currentRotation) % twoPi) + twoPi * 2) % twoPi;
+
+  const extraSpins = 5 + Math.floor(Math.random() * 3); // 5〜7周分を追加
+  const targetRotation = currentRotation + deltaNeeded + extraSpins * twoPi;
+
+  const duration = 4200; // ms
+  const startRotation = currentRotation;
+  const startTime = performance.now();
+
+  function animate(now) {
+    const elapsed = now - startTime;
+    const t = Math.min(elapsed / duration, 1);
+    const eased = easeOutCubic(t);
+    currentRotation = startRotation + (targetRotation - startRotation) * eased;
+    drawWheel(currentRotation);
+
+    if (t < 1) {
+      requestAnimationFrame(animate);
+    } else {
+      spinning = false;
+      document.getElementById('spinBtn').disabled = false;
+      document.getElementById('result').textContent = '結果: ' + items[winningIndex];
+    }
+  }
+  requestAnimationFrame(animate);
+}
+
+// 初期化
+items = getItemsFromInput();
+drawWheel(currentRotation);
+</script>
+</body>
+</html>
