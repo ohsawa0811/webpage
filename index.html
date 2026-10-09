@@ -400,7 +400,23 @@
     document.getElementById('current-url').textContent = window.location.href;
 
     const grid = document.getElementById('param-grid');
+    const fontScale = params.get('fontScale');
     const raw = params.get('p1');
+
+    const fontScaleRow = document.createElement('div');
+    fontScaleRow.className = fontScale === null ? 'param-row no-value' : 'param-row has-value';
+
+    const fontScaleKey = document.createElement('div');
+    fontScaleKey.className = 'param-key';
+    fontScaleKey.textContent = 'fontScale';
+
+    const fontScaleValue = document.createElement('div');
+    fontScaleValue.className = fontScale === null ? 'param-value empty' : 'param-value';
+    fontScaleValue.textContent = fontScale === null ? '（未指定）' : fontScale;
+
+    fontScaleRow.appendChild(fontScaleKey);
+    fontScaleRow.appendChild(fontScaleValue);
+    grid.appendChild(fontScaleRow);
 
     if (raw === null) {
       // p1 自体が未指定の場合
